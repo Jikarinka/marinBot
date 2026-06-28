@@ -1,0 +1,38 @@
+export default {
+    command: ['addprem', 'addpremium'],
+    category: 'owner',
+    isOwner: true,
+    description: 'Menambahkan status premium ke pengguna (Hanya Owner).',
+    async execute(sock, m, msgData, user) {
+        const { config, db, remoteJid } = msgData;
+        const targetJid = msgData.parseTargetJid();
+        
+        if (!targetJid) {
+            return msgData.reply(config.MARIN_MSG_QUOTED);
+        }
+
+        try {
+            const [targetUser] = await db.User.findOrCreate({ 
+                where: { jid: targetJid },
+                defaults: { is_registered: false }
+            });
+
+            if (targetUser.is_premium) {
+                return sock.sendMessage(remoteJid, { 
+                    text: `Umm... sepertinya @${targetJid.split('@')[0]} memang sudah jadi User Premium kok kak~ (´･ᴗ･ \` )`,
+                    mentions: [targetJid]
+                }, { quoted: m });
+            }
+
+            await targetUser.update({ is_premium: true });
+            await sock.sendMessage(remoteJid, { 
+                text: `Horeee~! Berhasil! Sekarang @${targetJid.split('@')[0]} sudah resmi jadi User Premium! Senangnyaa~ (๑>ᴗ<๑)`,
+                mentions: [targetJid]
+            }, { quoted: m });
+
+        } catch (error) {
+            console.error('Add Premium Error:', error);
+            await msgData.reply(`Uwaaa gawat! Gagal nambahin status premium: ${error.message}.. (╥﹏╥)`);
+        }
+    }
+};

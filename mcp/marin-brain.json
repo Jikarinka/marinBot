@@ -1,0 +1,70 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "created": "auto",
+    "description": "Long-term memory Marin — belajar & berkembang otomatis",
+    "last_updated": "2026-06-28T04:33:01.903Z",
+    "total_memories": 5
+  },
+  "learned": [
+    {
+      "key": "jangan_download_tiktok_with_url_https://vt.tikt",
+      "value": "GAGAL: download_tiktok with url https://vt.tiktok.com/ZSQcj1YeA/ → getaddrinfo ENOTFOUND api.marin.net (DNS failure)",
+      "category": "system",
+      "saved_at": "2026-06-19T22:10:05.550Z",
+      "times_recalled": 0
+    },
+    {
+      "key": "jangan_download_tiktok",
+      "value": "GAGAL: download_tiktok → getaddrinfo ENOTFOUND api.marin.net",
+      "category": "system",
+      "saved_at": "2026-06-19T22:10:34.526Z",
+      "times_recalled": 0
+    },
+    {
+      "key": "fix_github-push",
+      "value": "Root cause: Penggunaan fs.readFileSync dan fs.writeFileSync (synchronous) serta potensi blocking I/O saat proses git push yang berat dapat mengganggu event loop Node.js, menyebabkan heartbeat Baileys timeout (Connection Closed). Solusi: Mengganti semua operasi file synchronous menjadi asynchronous menggunakan fs/promises dan memastikan penggunaan promisify(exec) untuk command git agar tidak memblokir event loop.",
+      "category": "skill",
+      "saved_at": "2026-06-28T04:33:01.903Z",
+      "times_recalled": 0,
+      "updated_at": "2026-06-28T04:33:01.903Z"
+    },
+    {
+      "key": "jangan_download_instagram_with_url_https://www.",
+      "value": "GAGAL: download_instagram with url https://www.instagram.com/reel/DZtTsJKsxN_/?igsh=MXBvMGc0a3RuMWtw → ENOENT: no such file or directory, open '/api/video?url=...' - seems like the tool is treating the API URL as a local file path.",
+      "category": "system",
+      "saved_at": "2026-06-20T14:54:24.827Z",
+      "times_recalled": 0
+    },
+    {
+      "key": "fix_connection_closed_ai_storyteller",
+      "value": "Error 'Connection Closed' pada plugin AI Storyteller disebabkan oleh pemanggilan JSONFilePreset (lowdb) secara berulang di dalam fungsi execute, yang menyebabkan I/O disk yang berat dan menghalangi event loop Node.js. Hal ini mengakibatkan heartbeat WhatsApp (Baileys) timeout dan socket terputus. Solusi: Pindahkan inisialisasi lowdb ke luar fungsi execute atau gunakan caching instance DB agar disk I/O hanya terjadi sekali saat startup. Tambahkan sock.sendPresenceUpdate('composing') untuk menjaga koneksi tetap aktif saat menunggu respon AI.",
+      "category": "skill",
+      "saved_at": "2026-06-26T09:24:38.453Z",
+      "times_recalled": 0
+    }
+  ],
+  "plugins_created": [],
+  "failed_attempts": [
+    {
+      "action": "download_tiktok with url https://vt.tiktok.com/ZSQcj1YeA/",
+      "reason": "getaddrinfo ENOTFOUND api.marin.net (DNS failure)",
+      "alternative": null,
+      "logged_at": "2026-06-19T22:10:05.550Z"
+    },
+    {
+      "action": "download_tiktok",
+      "reason": "getaddrinfo ENOTFOUND api.marin.net",
+      "alternative": null,
+      "logged_at": "2026-06-19T22:10:34.526Z"
+    },
+    {
+      "action": "download_instagram with url https://www.instagram.com/reel/DZtTsJKsxN_/?igsh=MXBvMGc0a3RuMWtw",
+      "reason": "ENOENT: no such file or directory, open '/api/video?url=...' - seems like the tool is treating the API URL as a local file path.",
+      "alternative": null,
+      "logged_at": "2026-06-20T14:54:24.827Z"
+    }
+  ],
+  "user_patterns": {},
+  "capabilities": []
+}
