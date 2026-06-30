@@ -7,153 +7,18 @@ import { GoogleGenAI } from '@google/genai'
 import { getToolsForGemini, callTool } from './registry.js'
 import { checkRateLimit, isOnCooldown, getCooldownRemaining } from './anti-spam.js'
 import { loadBrain } from './memory-manager.js'
-import fs   from 'fs'
-import path from 'path'
-import { User } from '../databases/connector.js'
 
-const sessions     = new Map()   // in-memory cache — disync ke User DB
-const MAX_TURNS    = 25           // max turn sebelum sesi di-reset
-const MAX_LOOPS    = 15           // max MCP tool-call loop per request
-const COMPRESS_AT  = 16           // jumlah turn (user+model pair) sebelum kompres
-const KEEP_RECENT  = 6            // berapa turn terakhir yang dipertahankan mentah
-const compressionInProgress = new Set()
-const saveTimers   = new Map()    // debounce timer per JID
-const SAVE_DEBOUNCE = 500         // ms
+const sessions = new Map()
+const MAX_TURNS = 25
+const MAX_LOOPS = 15
 
-function stripMedia(history) {
-    // Hapus inlineData (base64 media) sebelum simpan ke DB agar tidak bengkak
-    return history.map(turn => ({
-        ...turn,
-        parts: (turn.parts || []).map(p => {
-            if (p.inlineData) return { text: '[media — tidak disimpan]' }
-            return p
-        })
-    }))
-}
-
-// ── Session: baca dari cache → fallback ke User DB ────────────────
 function getSession(jid) {
-    if (sessions.has(jid)) return sessions.get(jid)
-
-    // Load dari User DB kalau belum ada di cache
-    try {
-        const user = User.findOne({ where: { jid } })
-        const history = Array.isArray(user?.aiSession) ? user.aiSession : []
-        sessions.set(jid, history)
-        if (history.length > 0) {
-            console.log(`[Sessions] Loaded ${jid.split('@')[0]}: ${Math.floor(history.length/2)} turns dari DB`)
-        }
-        return history
-    } catch (e) {
-        console.warn('[Sessions] Gagal load dari DB:', e.message)
-        sessions.set(jid, [])
-        return sessions.get(jid)
-    }
+    if (!sessions.has(jid)) sessions.set(jid, [])
+    return sessions.get(jid)
 }
-
-// ── Session: simpan ke User DB (debounced) ────────────────────────
-export function saveSessionToDisk(jid) {
-    if (saveTimers.has(jid)) clearTimeout(saveTimers.get(jid))
-    saveTimers.set(jid, setTimeout(() => {
-        saveTimers.delete(jid)
-        try {
-            const history = sessions.get(jid)
-            if (!history) return
-
-            const stripped = stripMedia(history)
-            const turns    = Math.floor(history.length / 2)
-
-            // Coba update User record yang sudah ada
-            const updated = User.update({
-                aiSession:          stripped,
-                aiSessionUpdatedAt: new Date().toISOString(),
-            }, { where: { jid } })
-
-            if (!updated || updated[0] === 0) {
-                // User belum ada di DB (belum register) — simpan ke file fallback
-                _saveUnregistered(jid, stripped)
-            } else {
-                console.log(`[Sessions] ✅ Saved ${jid.split('@')[0]} — ${turns} turns → users.json`)
-            }
-        } catch (e) {
-            console.warn(`[Sessions] Gagal simpan ${jid}:`, e.message)
-        }
-    }, SAVE_DEBOUNCE))
-}
-
-// Fallback untuk user yang belum register — pakai file terpisah
-const FALLBACK_PATH = path.join(process.cwd(), 'databases', 'data', 'aiSessions.json')
-function _saveUnregistered(jid, history) {
-    try {
-        let all = {}
-        if (fs.existsSync(FALLBACK_PATH)) {
-            try { all = JSON.parse(fs.readFileSync(FALLBACK_PATH, 'utf-8')) } catch (_) {}
-        }
-        all[jid] = { updatedAt: new Date().toISOString(), history }
-        fs.mkdirSync(path.dirname(FALLBACK_PATH), { recursive: true })
-        fs.writeFileSync(FALLBACK_PATH, JSON.stringify(all, null, 2), 'utf-8')
-        console.log(`[Sessions] ✅ Saved unregistered ${jid.split('@')[0]} → aiSessions.json`)
-    } catch (e) {
-        console.warn('[Sessions] Fallback save gagal:', e.message)
-    }
-}
-
-// ── Flush semua pending saat shutdown ─────────────────────────────
-export function flushAllSessions() {
-    let flushed = 0
-    for (const [jid, timer] of saveTimers.entries()) {
-        clearTimeout(timer)
-        saveTimers.delete(jid)
-        try {
-            const history = sessions.get(jid)
-            if (!history || history.length === 0) continue
-            const stripped = stripMedia(history)
-            const updated  = User.update({
-                aiSession:          stripped,
-                aiSessionUpdatedAt: new Date().toISOString(),
-            }, { where: { jid } })
-            if (!updated || updated[0] === 0) _saveUnregistered(jid, stripped)
-            flushed++
-        } catch (e) {
-            console.warn(`[Sessions] Flush gagal ${jid}:`, e.message)
-        }
-    }
-    if (flushed > 0) console.log(`[Sessions] ✅ Flushed ${flushed} sesi saat shutdown`)
-}
-
-// Exit handlers
-const _exit = () => { flushAllSessions(); process.exit(0) }
-process.once('SIGTERM',    _exit)
-process.once('SIGINT',     _exit)
-process.once('beforeExit', () => flushAllSessions())
 
 export function resetSession(jid) {
     sessions.delete(jid)
-    saveTimers.delete(jid)
-    // Hapus dari DB
-    try {
-        User.update({ aiSession: [], aiSessionUpdatedAt: null }, { where: { jid } })
-    } catch (_) {}
-    // Hapus dari fallback file juga
-    try {
-        if (fs.existsSync(FALLBACK_PATH)) {
-            const all = JSON.parse(fs.readFileSync(FALLBACK_PATH, 'utf-8'))
-            delete all[jid]
-            fs.writeFileSync(FALLBACK_PATH, JSON.stringify(all, null, 2), 'utf-8')
-        }
-    } catch (_) {}
-}
-
-export function getSessionRaw(jid) {
-    return getSession(jid)
-}
-
-export function getAllSessionsRaw() {
-    const result = {}
-    for (const [jid, history] of sessions.entries()) {
-        result[jid] = history
-    }
-    return result
 }
 
 export function getAllSessions() {
@@ -165,114 +30,7 @@ export function getAllSessions() {
 }
 
 function trimSession(h) {
-    // Hard fallback: kalau masih terlalu panjang setelah kompres, buang dari awal
     while (h.length > MAX_TURNS * 2) h.splice(0, 2)
-}
-
-/**
- * Kompres sesi panjang jadi ringkasan padat.
- *
- * Alih-alih buang pesan lama begitu saja (kehilangan konteks),
- * kita ringkas semua yang lebih tua dari KEEP_RECENT turn terakhir
- * menjadi satu blok [SESSION SUMMARY] yang compact.
- *
- * Format summary sengaja structured agar Gemini gampang baca:
- *   • FILE DIEDIT: ...
- *   • PLUGIN DIBUAT: ...
- *   • KEPUTUSAN TEKNIS: ...
- *   • PREFERENSI USER: ...
- *   • TOPIK DIBAHAS: ...
- */
-export async function compressSession(jid, apiKey, force = false) {
-    const history = getSession(jid)
-
-    // Hitung jumlah turn (1 turn = 1 pair user+model)
-    const totalTurns = Math.floor(history.length / 2)
-    if (!force && totalTurns < COMPRESS_AT) return   // belum perlu
-    if (force && history.length < 4) return          // minimal ada 2 turn
-    if (compressionInProgress.has(jid)) return  // sedang dikompres
-
-    compressionInProgress.add(jid)
-    try {
-        // Pisahkan: bagian lama (akan dikompres) vs bagian baru (dipertahankan mentah)
-        const keepCount  = KEEP_RECENT * 2   // dalam satuan array item
-        const splitAt    = history.length - keepCount
-        if (splitAt <= 0) return
-
-        const oldPart    = history.slice(0, splitAt)
-        const recentPart = history.slice(splitAt)
-
-        // Cek apakah oldPart sudah pernah di-kompres (ada summary block)
-        // Kalau ada, include summary lama + sisa yang belum dikompres
-        let prevSummary = ''
-        let toCompress  = oldPart
-
-        const summaryIdx = oldPart.findIndex(h =>
-            h.parts?.[0]?.text?.startsWith('[SESSION SUMMARY]')
-        )
-        if (summaryIdx !== -1) {
-            prevSummary = oldPart[summaryIdx].parts[0].text
-            toCompress  = oldPart.slice(summaryIdx + 2) // skip summary pair
-        }
-
-        if (toCompress.length === 0 && !prevSummary) return
-
-        // Susun teks history lama untuk di-summarize
-        const histText = toCompress.map(h => {
-            const role = h.role === 'user' ? 'User' : 'Marin'
-            const text = h.parts?.map(p => p.text || (p.functionCall ? `[Tool: ${p.functionCall.name}]` : '')).filter(Boolean).join(' ')
-            return `${role}: ${text?.slice(0, 400) || ''}`
-        }).filter(Boolean).join('\n')
-
-        const prompt = `Kamu adalah sistem ringkasan sesi AI.
-
-${prevSummary ? `RINGKASAN SEBELUMNYA:\n${prevSummary}\n\n` : ''}PERCAKAPAN BARU YANG PERLU DIRINGKAS:
-${histText}
-
-Buat ringkasan PADAT dan TERSTRUKTUR dalam format ini (kosongkan bagian yang tidak relevan):
-
-[SESSION SUMMARY]
-• FILE DIEDIT: <daftar file yang dibuat/diubah/dihapus>
-• PLUGIN DIBUAT: <nama plugin dan fungsinya>
-• BUG DIFIX: <deskripsi bug dan solusinya>
-• KEPUTUSAN TEKNIS: <keputusan arsitektur/desain penting>
-• PREFERENSI USER: <hal yang user suka/tidak suka/minta khusus>
-• TOPIK DIBAHAS: <topik utama yang dibahas>
-• KONTEKS PENTING: <info lain yang kritis untuk sesi lanjutan>
-
-Ringkas SEMUA informasi teknis penting. Jangan buang detail seperti nama file, nama plugin, atau keputusan desain.
-Maksimal 600 kata. Hanya tulis summary-nya saja, tanpa penjelasan tambahan.`
-
-        // Pakai model ringan untuk kompresi
-        const compressModel = 'gemini-3.5-flash'
-        const ai = new GoogleGenAI({ apiKey })
-        const res = await ai.models.generateContent({
-            model: compressModel,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: { temperature: 0.3, maxOutputTokens: 1024 }
-        })
-
-        const summaryText = res?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-        if (!summaryText || summaryText.length < 50) return  // kompresi gagal, jangan sentuh history
-
-        // Susun ulang history: [summary pair] + [recent turns]
-        const summaryPair = [
-            { role: 'user',  parts: [{ text: summaryText }] },
-            { role: 'model', parts: [{ text: '✅ Konteks sesi sebelumnya sudah dipadatkan.' }] }
-        ]
-
-        const turnsBefore = Math.floor(history.length / 2)
-        history.splice(0, history.length, ...summaryPair, ...recentPart)
-        const turnsAfter = Math.floor(history.length / 2)
-
-        console.log(`[Agent] Session ${jid.split('@')[0]} dikompres: ${turnsBefore} → ${turnsAfter} turns (summary ${summaryText.length} chars)`)
-    } catch (e) {
-        console.warn('[Agent] compressSession gagal (non-fatal):', e.message?.slice(0, 80))
-        // Fallback ke trim biasa kalau kompresi error
-        trimSession(history)
-    } finally {
-        compressionInProgress.delete(jid)
-    }
 }
 
 function enrichText(text) {
@@ -731,18 +489,6 @@ export async function runAgent(sock, m, msgData, userText, apiKey, modelKey = 'd
         const result = await mcpLoopWithFallback(history, apiKey, effectiveModelKey, sock, m, msgData)
         if (result.text) history.push({ role: 'model', parts: [{ text: result.text }] })
         trimSession(history)
-
-        // Simpan ke disk (debounced, non-blocking)
-        saveSessionToDisk(senderJid)
-
-        // Kompres sesi secara async — tidak block response ke user
-        // Dipanggil setelah reply dikirim supaya tidak nambah latency
-        const totalTurns = Math.floor(history.length / 2)
-        if (totalTurns >= COMPRESS_AT) {
-            compressSession(senderJid, apiKey).catch(e =>
-                console.warn('[Agent] Background compress error:', e.message?.slice(0, 60))
-            )
-        }
         if (isAudioPart && effectiveModelKey !== modelKey) {
             result.modelSwitched = { from: modelKey, to: effectiveModelKey, reason: 'audio_not_supported' }
         }

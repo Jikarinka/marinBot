@@ -23,7 +23,15 @@ export const extractMessageData = (m, sock) => {
 
     const msg = unwrapMessage(m.message);
     const messageType = getMessageType(msg);
-    const messageContent = getMessageContent(msg, messageType).trim();
+
+    // Sanitize smart/curly quotes dari iPhone autocorrect — berlaku untuk semua plugin
+    const _sanitizeQuotes = (s) => s
+        .replace(/[‘’‚‛′‵]/g, "'")  // ' ' ‚ ‛ ′ ‵ → '
+        .replace(/[“”„‟″‶]/g, '"')  // " " „ ‟ ″ ‶ → "
+        .replace(/[‐‑‒–—―]/g, '-')  // ‐‑‒–—― → -
+        .replace(/´|ʹ|ʼ/g, "'")                    // ´ ʹ ʼ → '
+        .replace(/`/g, '`')                                   // ` → `
+    const messageContent = _sanitizeQuotes(getMessageContent(msg, messageType).trim());
 
     const prefixes = ['.', '!', '/', '#'];
     let commandName = '';

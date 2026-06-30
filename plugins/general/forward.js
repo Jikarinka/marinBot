@@ -8,7 +8,7 @@ export default {
     limit: 1,
 
     async execute(sock, m, msgData) {
-        const { remoteJid, isQuoted, isQuotedMedia, quotedMsg, quotedType, quotedMime } = msgData
+        const { remoteJid, isQuoted, isQuotedMedia, quotedMsg, quotedType, quotedMime, args } = msgData
 
         if (!isQuoted || !isQuotedMedia) {
             return await msgData.reply('Silakan quote/reply media yang ingin dikirim ulang! 📌')
@@ -23,7 +23,9 @@ export default {
                 return await msgData.reply('Gagal mengunduh media. Coba lagi nanti! ❌')
             }
 
-            const caption = quotedMsg[quotedType]?.caption || ''
+            // Perbaikan: Jika args adalah array, gabungkan menjadi string dengan spasi
+            const customCaption = Array.isArray(args) ? args.join(' ') : args;
+            const caption = customCaption || quotedMsg[quotedType]?.caption || ''
             const fileName = quotedMsg[quotedType]?.fileName || 'file'
 
             let messagePayload = {}

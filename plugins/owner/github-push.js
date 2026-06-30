@@ -1,7 +1,8 @@
 import { exec } from 'child_process'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import fs from 'fs'
+import fs from 'fs/promises'
+import { existsSync } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
@@ -41,8 +42,8 @@ export default {
             // Hapus cache puppeteer agar tidak ikut ke GitHub
             const cacheDir = path.join(ROOT, '.cache')
 
-            if (fs.existsSync(cacheDir)) {
-                fs.rmSync(cacheDir, {
+            if (existsSync(cacheDir)) {
+                await fs.rm(cacheDir, {
                     recursive: true,
                     force: true
                 })
@@ -54,19 +55,20 @@ export default {
                 '.cache/',
                 'node_modules/',
                 '.env',
+                'README.md',
                 'sessions/',
                 '*.log',
                 '*.zip',
                 '.DS_Store'
             ]
 
-            if (!fs.existsSync(gitignorePath)) {
-                fs.writeFileSync(
+            if (!existsSync(gitignorePath)) {
+                await fs.writeFile(
                     gitignorePath,
                     ignoreRules.join('\n')
                 )
             } else {
-                let content = fs.readFileSync(
+                let content = await fs.readFile(
                     gitignorePath,
                     'utf8'
                 )
@@ -77,7 +79,7 @@ export default {
                     }
                 }
 
-                fs.writeFileSync(gitignorePath, content)
+                await fs.writeFile(gitignorePath, content)
             }
 
             const remoteUrl =
@@ -144,12 +146,10 @@ export default {
                 return
             }
 
-            try {
-                await execAsync(
-                    `git commit -m "${commitMessage.replace(/"/g, '\\"')}"`,
-                    { cwd: ROOT }
-                )
-            } catch {}
+            await execAsync(
+                `git commit -m "${commitMessage}"`,
+                { cwd: ROOT }
+            )
 
             await execAsync(
                 'git branch -M main',
@@ -157,7 +157,7 @@ export default {
             )
 
             await execAsync(
-                'git push -u origin main --force',
+                'git push -u origin main',
                 { cwd: ROOT }
             )
 

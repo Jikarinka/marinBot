@@ -108,6 +108,12 @@ function ensureRpg(u) {
     }
 }
 
+// Migrasi: pastikan user lama punya field aiSession
+function ensureAiSession(u) {
+    if (!Array.isArray(u.aiSession)) u.aiSession = [];
+    if (u.aiSessionUpdatedAt === undefined) u.aiSessionUpdatedAt = null;
+}
+
 // ── MODEL: User ──────────────────────────────────────────────────────────────
 const User = {
     _now: () => new Date().toISOString(),
@@ -120,6 +126,8 @@ const User = {
         limit: defaults.limit ?? 10,
         is_registered: defaults.is_registered ?? false,
         rpg: defaults.rpg ?? makeDefaultRpg(),
+        aiSession: defaults.aiSession ?? [],   // riwayat percakapan AI
+        aiSessionUpdatedAt: null,
         createdAt: User._now(),
         updatedAt: User._now(),
     }),
@@ -128,6 +136,7 @@ const User = {
         const u = usersDb.data.users.find(u => u.jid === where.jid);
         if (!u) return null;
         ensureRpg(u);
+        ensureAiSession(u);
         return User._wrap(u);
     },
 
@@ -141,6 +150,7 @@ const User = {
             created = true;
         } else {
             ensureRpg(u);
+            ensureAiSession(u);
         }
         return [User._wrap(u), created];
     },

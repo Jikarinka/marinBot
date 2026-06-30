@@ -98,8 +98,6 @@ async function handleAiLogic(sock, m, msgData, user, group, rawText) {
         await sock.sendPresenceUpdate('composing', remoteJid)
     } catch (_) {}
 
-    //await msgData.react('⏳')
-
     let userText = text
     if ((msgData.isMedia || msgData.isQuotedMedia) && !userText) {
         const mtype = msgData.isMedia ? msgData.messageType : msgData.quotedType
@@ -111,22 +109,28 @@ async function handleAiLogic(sock, m, msgData, user, group, rawText) {
 
     msgData._isOwner = user?.isOwner || false
 
-    const result = await runAgent(sock, m, msgData, userText, apiKey, modelKey, user);
+    try {
+        const result = await runAgent(sock, m, msgData, userText, apiKey, modelKey, user);
 
-    if (result.type === 'error') {
-        await msgData.react('❌');
-        return msgData.reply('❌ ' + result.text);
-    }
+        if (result.type === 'error') {
+            await msgData.react('❌');
+            return msgData.reply('❌ ' + result.text);
+        }
 
-    //await msgData.react('✅')
+        if (result.modelSwitched?.reason === 'audio_not_supported') {
+            await msgData.reply(`🔄 _Model "${result.modelSwitched.from}" belum support voice note, otomatis pindah ke "${result.modelSwitched.to}"~_`);
+        }
 
-    if (result.modelSwitched?.reason === 'audio_not_supported') {
-        await msgData.reply(`🔄 _Model "${result.modelSwitched.from}" belum support voice note, otomatis pindah ke "${result.modelSwitched.to}"~_`);
-    }
-
-    if (result.text) {
-        const skip = ['selesai', '✨ selesai!', '✨ selesai', ''].includes(result.text.toLowerCase().trim());
-        if (!skip) await msgData.reply(result.text);
+        if (result.text) {
+            const skip = ['selesai', '✨ selesai!', '✨ selesai', ''].includes(result.text.toLowerCase().trim());
+            if (!skip) await msgData.reply(result.text);
+        }
+    } catch (e) {
+        console.error('AI Chat Error:', e)
+        if (e.message === 'Connection Closed') {
+            return msgData.reply('⚠️ Koneksi terputus saat memproses permintaan. Marin coba stabilkan dulu ya~');
+        }
+        return msgData.reply('❌ Ups, ada gangguan teknis di otak Marin. Coba lagi nanti ya!');
     }
 }
 
@@ -157,7 +161,6 @@ export default {
         const botNumber = botId.split(':')[0].split('@')[0]
         const botNumLid = botLid.split(':')[0].split('@')[0]
 
-        // Normalize JID ke nomor saja (hapus :device dan @domain)
         const toNum = (jid) => (jid || '').split(':')[0].split('@')[0]
 
         const isMentioned  = msgData.mentions?.some(jid => {
@@ -165,41 +168,16 @@ export default {
             return n === botNumber || n === botNumLid
         })
 
-        // isReplyToBot: cek quotedSender dari berbagai kemungkinan format
         const quotedSenderNum = toNum(msgData.quotedSender)
         const isReplyToBot = msgData.isQuoted && (
             quotedSenderNum === botNumber ||
             quotedSenderNum === botNumLid ||
-            // Fallback: cek dari contextInfo participant
             toNum(msgData.contextInfo?.participant) === botNumber ||
             toNum(msgData.msg?.[msgData.messageType]?.contextInfo?.participant) === botNumber
         )
 
-        if (!msgData.isGroup) {
-            const hasContent = msgData.text?.trim() || msgData.isMedia || msgData.isQuotedMedia
-            if (!hasContent) return false
-
-            if (!user?.is_registered && !user?.isOwner && !user?.isCoordinator) {
-                await sock.sendMessage(msgData.remoteJid, {
-                    text: '👋 Haii~ Marin belum kenal kamu nih!\n\nKetik *.daftar* dulu ya biar Marin tau nama kamu~ Baru bisa ngobrol sepuasnya! 😊'
-                }, { quoted: m })
-                return true
-            }
-
+        if (isMentioned || isReplyToBot || (!msgData.isGroup)) {
             await handleAiLogic(sock, m, msgData, user, group, msgData.text || '')
-            return true
-        }
-
-        if (msgData.isGroup && (isMentioned || isReplyToBot)) {
-            if (!user?.is_registered && !user?.isOwner && !user?.isCoordinator) {
-                await sock.sendMessage(msgData.remoteJid, {
-                    text: '👋 Haii~ Kamu belum daftar nih!\nKetik *.daftar* dulu ya biar Marin kenal kamu~ 😊'
-                }, { quoted: m })
-                return true
-            }
-
-            const cleanText = msgData.text?.replace(/@\d+/g, '').trim() || ''
-            await handleAiLogic(sock, m, msgData, user, group, cleanText)
             return true
         }
 

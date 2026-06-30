@@ -19,6 +19,9 @@ export default {
         if (!/^https?:\/\//.test(text)) text = 'https://' + text;
 
         try {
+            // Kirim status 'composing' supaya koneksi Baileys tetap terjaga (anti Connection Closed)
+            await sock.sendPresenceUpdate('composing', msgData.remoteJid);
+
             // Marin pakai fetch dengan opsi redirect otomatis yaa~
             const res = await fetch(text, {
                 redirect: 'follow',
@@ -36,6 +39,9 @@ export default {
 
             const contentType = res.headers.get('content-type') || '';
             const filename = path.basename(new URL(res.url).pathname) || 'file-marin';
+
+            // Kirim status 'composing' lagi sebelum kirim pesan
+            await sock.sendPresenceUpdate('composing', msgData.remoteJid);
 
             // 1. Jika kontennya adalah gambar
             if (/^image\//.test(contentType)) {
@@ -87,9 +93,17 @@ export default {
 
         } catch (error) {
             console.error('Fetch Tool Error:', error);
-            await sock.sendMessage(msgData.remoteJid, {
-                text: `Uwaaa gawat! Marin gagal ambil datanya kak: ${error.message}.. (╥﹏╥)`
+            
+            // Tangani Error Connection Closed secara spesifik
+            if (error.message === 'Connection Closed') {
+                return sock.sendMessage(msgData.remoteJid, { 
+                    text: 'Ups! Koneksi Marin terputus pas lagi ambil data. Coba lagi ya kak! (｡T ω T｡)' 
+                }, { quoted: m });
+            }
+
+            await sock.sendMessage(msgData.remoteJid, { 
+                text: `Aduuh, ada error nih pas ambil datanya: ${error.message} (｡T ω T｡)` 
             }, { quoted: m });
         }
     }
-};
+}
