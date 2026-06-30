@@ -194,6 +194,23 @@ async function connectToWhatsApp(sessionId = 'default') {
             if (sessionId === 'default') {
                 rescheduleAllReminders(sock);
             }
+
+            // Kirim notifikasi "berhasil terhubung" ke owner — hanya untuk session default
+            if (sessionId === 'default' && config.OWNER_NUMBER) {
+                try {
+                    await sock.sendMessage("6281249241152@s.whatsapp.net", {
+                        text:
+                            "Successfully connected by\n\n*💌 • Name BOT:* " +
+                            config.BOT_NAME +
+                            "\n*🎐 • Name OWNER:* " +
+                            (config.OWNER_NAME || config.BOT_NAME) +
+                            "\n*📞 • Nomor OWNER:* https://wa.me/" +
+                            config.OWNER_NUMBER.replace('@s.whatsapp.net', ''),
+                    });
+                } catch (err) {
+                    console.error(`[${sessionId}] Gagal mengirim pesan koneksi ke owner:`, err.message);
+                }
+            }
         }
     });
 

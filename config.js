@@ -10,6 +10,7 @@ const config = {
   // Bot Config
   BOT_NUMBER:    process.env.BOT_NUMBER,
   OWNER_NUMBER:  process.env.OWNER_NUMBER,
+  OWNER_NAME:    process.env.OWNER_NAME,
   PORT:          process.env.PORT,
 
   // Koordinator — bisa akses semua fitur kecuali hapus/buat file
