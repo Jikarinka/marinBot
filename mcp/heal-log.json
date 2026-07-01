@@ -63,11 +63,27 @@
       "success": false,
       "note": "Semua model gagal",
       "at": "2026-06-30T17:29:54.361Z"
+    },
+    {
+      "key": "plugins/ai/ai-chat.js::Connection Closed",
+      "file": "plugins/ai/ai-chat.js",
+      "error": "Connection Closed",
+      "success": true,
+      "note": "Selesai! Plugin `.weton` sudah aku buatkan dan sudah aktif (hot-reload). \n\nKamu bisa coba dengan format:\n`.weton 17-08-1945` atau `.weton 2000-05-20`\n\n**Detail Plugin:**\n- **Lokasi:** `plugins/general/weton.js`\n- **Fitur:** Menghitung hari, pasaran, dan total neptu secara otomatis menggunakan refere",
+      "at": "2026-07-01T08:28:43.502Z"
+    },
+    {
+      "key": "plugins/ai/ai-chat.js::Connection Closed",
+      "file": "plugins/ai/ai-chat.js",
+      "error": "Connection Closed",
+      "success": true,
+      "note": "Sesuai instruksi **[AUTO-HEAL MODE]**, aku sudah menganalisa root cause dari stack trace tersebut.\n\n### 🔍 Analisa Root Cause\nError `Error: Connection Closed` pada `baileys/lib/Socket/socket.js` terjadi karena bot mencoba mengirim data (`sendRawMessage`) atau melakukan query (`groupMetadata`) saat k",
+      "at": "2026-07-01T08:30:23.416Z"
     }
   ],
   "last_healed": {
-    "file": "plugins/owner/owner-eval.js",
-    "at": "2026-06-30T17:27:52.476Z"
+    "file": "plugins/ai/ai-chat.js",
+    "at": "2026-07-01T08:30:23.416Z"
   },
-  "updated_at": "2026-06-30T17:29:54.361Z"
+  "updated_at": "2026-07-01T08:30:23.416Z"
 }

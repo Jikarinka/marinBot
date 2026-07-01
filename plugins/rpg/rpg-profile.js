@@ -10,6 +10,7 @@ export default {
 
     async execute(sock, m, msgData) {
         const targetJid = msgData.mentions?.[0] || msgData.quotedSender || msgData.senderJid;
+        const isSelf = targetJid === msgData.senderJid;
         const [user] = User.findOrCreate({ where: { jid: targetJid } });
         const { rpg } = user;
 
@@ -19,25 +20,36 @@ export default {
         const needed = range.xp;
         const percent = needed > 0 ? Math.min(100, Math.round((progress / needed) * 100)) : 100;
 
-        const barLength = 10;
+        const barLength = 12;
         const filled = Math.round((percent / 100) * barLength);
         const bar = '█'.repeat(filled) + '░'.repeat(barLength - filled);
 
-        const caption = `
-*──「 PROFILE 」──*
-│ 📛 *Nama:* ${user.name || msgData.pushName || 'Tidak diketahui'}
-│ 🏅 *Role:* ${getRoleForLevel(currentLevel)}
-│ 📊 *Level:* ${currentLevel}
-│ ✨ *EXP:* ${rpg.exp} (${progress}/${needed})
-│ ${bar} ${percent}%
-│ ❤️ *Health:* ${rpg.health}/100
-│ 💹 *Money:* ${rpg.money}
-└──···
-        `.trim();
+        const caption = [
+            `╭───「 👤 *PROFILE* 」`,
+            `│`,
+            `│ 📛 *Nama:* ${user.name || msgData.pushName || 'Unknown'}`,
+            `│ 🏅 *Role:* ${getRoleForLevel(currentLevel)}`,
+            `│ 📊 *Level:* ${currentLevel}`,
+            `│ ✨ *EXP:* ${rpg.exp}`,
+            `│ ${bar} ${percent}%`,
+            `│ _(${progress}/${needed} menuju level ${currentLevel + 1})_`,
+            `│`,
+            `│ ❤️ *Health:* ${rpg.health}/100`,
+            `│ 💹 *Money:* ${rpg.money}`,
+            `│ 🏦 *Bank:* ${rpg.bank}`,
+            `╰───────────────`,
+        ].join('\n');
 
-        await sock.sendMessage(msgData.remoteJid, {
+        // nativeFlow tombol aksi setelah profile
+        return sock.sendMessage(msgData.remoteJid, {
             text: caption,
+            footer: 'Marin Bot 🌸',
+            nativeFlow: [
+                { text: '🎒 Inventory', id: '.inv' },
+                { text: '🏆 Leaderboard', id: '.lb' },
+                ...(isSelf ? [{ text: '💹 Shop', id: '.shop' }] : [])
+            ],
             mentions: [targetJid]
-        });
+        }, { quoted: m });
     }
 };

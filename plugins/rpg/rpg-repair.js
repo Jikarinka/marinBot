@@ -1,10 +1,13 @@
 import User from '../../databases/orm/User.js';
+import { sendSmartList } from '../../libs/message-builder.js';
 
 const RECIPES = {
-    pickaxe: { cost: { wood: 5, rock: 3, iron: 3, diamond: 1 }, durabilityField: 'pickaxedurability', ownField: 'pickaxe' },
-    sword:   { cost: { wood: 5, iron: 9, diamond: 1 },          durabilityField: 'sworddurability',   ownField: 'sword' },
-    armor:   { cost: { iron: 15, diamond: 3 },                  durabilityField: 'armordurability',   ownField: 'armor' },
+    pickaxe: { cost: { wood: 5, rock: 3, iron: 3, diamond: 1 }, durabilityField: 'pickaxedurability', ownField: 'pickaxe', emoji: '⛏️' },
+    sword:   { cost: { wood: 5, iron: 9, diamond: 1 },          durabilityField: 'sworddurability',   ownField: 'sword',   emoji: '⚔️' },
+    armor:   { cost: { iron: 15, diamond: 3 },                  durabilityField: 'armordurability',   ownField: 'armor',   emoji: '🥼' },
 };
+
+const formatCost = (cost) => Object.entries(cost).map(([k, v]) => `${v} ${k}`).join(', ');
 
 export default {
     command: ['repair'],
@@ -18,29 +21,40 @@ export default {
         const recipe = RECIPES[type];
 
         if (!recipe) {
-            return msgData.reply(
-                `*「 REPAIR 」*\n` +
-                `▧ pickaxe ⛏️ — 5 wood, 3 rock, 3 iron, 1 diamond\n` +
-                `▧ sword ⚔️ — 5 wood, 9 iron, 1 diamond\n` +
-                `▧ armor 🥼 — 15 iron, 3 diamond\n\n` +
-                `Contoh: \`.repair pickaxe\``
-            );
+            const [user] = User.findOrCreate({ where: { jid: msgData.senderJid } });
+            const { rpg } = user;
+
+            const sections = [{
+                title: '🔧 Pilih Equipment yang ingin di-Repair',
+                rows: Object.entries(RECIPES).map(([k, r]) => {
+                    const durability = rpg[r.durabilityField] ?? 0;
+                    const own = rpg[r.ownField] > 0;
+                    return {
+                        title: `${r.emoji} ${k.charAt(0).toUpperCase() + k.slice(1)} ${own ? `| Durability: ${durability}` : '| Belum punya'}`,
+                        description: `Bahan: ${formatCost(r.cost)}`,
+                        rowId: `.repair ${k}`
+                    };
+                })
+            }];
+
+            return sendSmartList(sock, msgData, m, {
+                text: `🔧 *Repair Equipment*\n\nPilih equipment yang ingin kamu perbaiki.\n_Semua equipment akan kembali ke durability 100._`,
+                title: '🔧 Repair',
+                buttonText: '⚙️ Pilih Equipment',
+                sections
+            });
         }
 
         const [user] = User.findOrCreate({ where: { jid: msgData.senderJid } });
         const { rpg } = user;
 
-        if (rpg[recipe.ownField] === 0) {
-            return msgData.reply(`❌ Kamu belum punya ${type}!`);
-        }
-        if (rpg[recipe.durabilityField] > 99) {
-            return msgData.reply(`✅ ${type} kamu belum rusak, durability masih penuh.`);
-        }
+        if (rpg[recipe.ownField] === 0) return msgData.reply(`❌ Kamu belum punya *${type}*!`);
+        if (rpg[recipe.durabilityField] > 99) return msgData.reply(`✅ *${type}* kamu masih penuh, belum perlu direpair.`);
 
         const missing = Object.entries(recipe.cost).filter(([item, amt]) => (rpg[item] || 0) < amt);
         if (missing.length) {
-            const list = missing.map(([item, amt]) => `${item}: butuh ${amt}, kamu punya ${rpg[item] || 0}`).join('\n');
-            return msgData.reply(`❌ Bahan tidak cukup!\n${list}`);
+            const list = missing.map(([item, amt]) => `• ${item}: butuh *${amt}*, punya *${rpg[item] || 0}*`).join('\n');
+            return msgData.reply(`❌ *Bahan tidak cukup!*\n\n${list}`);
         }
 
         const patch = { [recipe.durabilityField]: 100 };
@@ -49,7 +63,6 @@ export default {
         }
 
         User.updateRpg(msgData.senderJid, patch);
-
-        await msgData.reply(`✅ Berhasil memperbaiki ${type}! Durability kembali 100.`);
+        await msgData.reply(`✅ *${recipe.emoji} ${type}* berhasil diperbaiki!\nDurability kembali ke *100*`);
     }
 };

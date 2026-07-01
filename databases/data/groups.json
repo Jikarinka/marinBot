@@ -17,6 +17,16 @@
       "is_limited": true,
       "createdAt": "2026-06-18T01:14:10.606Z",
       "updatedAt": "2026-06-18T01:14:10.606Z"
+    },
+    {
+      "jid": "120363025004688971@g.us",
+      "name": "🎰Classroom Loli",
+      "is_welcome": false,
+      "is_ban": false,
+      "is_limited": true,
+      "anti_link": false,
+      "createdAt": "2026-07-01T03:26:26.838Z",
+      "updatedAt": "2026-07-01T03:26:26.838Z"
     }
   ]
 }

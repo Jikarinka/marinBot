@@ -4,7 +4,7 @@ import { COOLDOWNS, checkCooldown, emoticon, randomInt } from '../../libs/rpg-he
 export default {
     command: ['mining', 'mine'],
     category: 'rpg',
-    description: 'Mining untuk dapat resource (wood, rock, iron, dll). Butuh pickaxe & health minimal 80.',
+    description: 'Mining untuk dapat resource. Butuh pickaxe & health min 80.',
     isRegistered: false,
     limit: false,
 
@@ -12,35 +12,17 @@ export default {
         const [user] = User.findOrCreate({ where: { jid: msgData.senderJid } });
         const { rpg } = user;
 
-        if (rpg.health < 80) {
-            return msgData.reply(
-                `❌ Butuh minimal 80 ❤️ Health untuk mining!\n` +
-                `Beli potion dulu pakai \`.buy potion <jumlah>\`, lalu pakai \`.heal <jumlah>\``
-            );
-        }
-
-        if (rpg.pickaxe === 0) {
-            return msgData.reply('❌ Kamu belum punya pickaxe! Beli dulu di `.shop`');
-        }
-
-        if (rpg.pickaxedurability <= 0) {
-            return msgData.reply('❌ Pickaxe kamu sudah rusak! Perbaiki dulu pakai `.repair pickaxe`');
-        }
+        if (rpg.health < 80) return msgData.reply(`❌ Butuh minimal *80* ❤️ Health! Kamu punya: *${rpg.health}*`);
+        if (rpg.pickaxe === 0) return msgData.reply('❌ Belum punya pickaxe! Craft dulu: `.craft pickaxe`');
+        if (rpg.pickaxedurability <= 0) return msgData.reply('❌ Pickaxe rusak! Perbaiki dulu: `.repair pickaxe`');
 
         const sisaWaktu = checkCooldown(rpg.lastmining, COOLDOWNS.mining);
-        if (sisaWaktu) {
-            return msgData.reply(`⏰ Kamu masih capek mining! Coba lagi dalam *${sisaWaktu}*`);
-        }
+        if (sisaWaktu) return msgData.reply(`⏰ Masih capek mining! Coba lagi dalam *${sisaWaktu}*`);
 
-        // ── Reward acak (base, belum dipengaruhi pet — ditambahkan di tahap selanjutnya) ──
         const rewards = {
-            exp: randomInt(1000),
-            trash: randomInt(101),
-            string: randomInt(25),
-            rock: randomInt(30),
-            iron: randomInt(25),
+            exp: randomInt(1000), trash: randomInt(101),
+            string: randomInt(25), rock: randomInt(30), iron: randomInt(25),
         };
-        // Drop rare item dengan chance kecil
         if (randomInt(100) < 15) rewards.diamond = randomInt(4) + 1;
         if (randomInt(100) < 5) rewards.emerald = randomInt(2) + 1;
 
@@ -59,13 +41,26 @@ export default {
             patch[key] = (rpg[key] || 0) + val;
             gainText += `*+${val}* ${emoticon(key)} ${key}\n`;
         }
-
         User.updateRpg(msgData.senderJid, patch);
 
-        await msgData.reply(
-            `⛏️ *Mining selesai!*\n\n` +
-            `Kamu kehilangan:\n*-${lostHealth}* ❤️ health\n*-${lostDurability}* ⛏️ pickaxe durability\n\n` +
-            `Kamu mendapat:\n${gainText.trim() || '_(tidak ada hasil kali ini)_'}`
-        );
+        const warnDurability = patch.pickaxedurability <= 5 ? '\n\n⚠️ Durability pickaxe hampir habis! `.repair pickaxe`' : '';
+        const warnHealth = patch.health < 20 ? '\n\n💔 Health kamu kritis! `.heal` segera!' : '';
+
+        await sock.sendMessage(msgData.remoteJid, {
+            text: [
+                `⛏️ *Mining selesai!*`,
+                ``,
+                `Kehilangan:\n*-${lostHealth}* ❤️ health | *-${lostDurability}* ⛏️ durability`,
+                ``,
+                `Didapat:\n${gainText.trim() || '_(tidak ada)_'}`,
+                warnDurability, warnHealth
+            ].join('\n').trim(),
+            footer: 'Marin Bot 🌸',
+            nativeFlow: [
+                { text: '⛏️ Mining Lagi', id: '.mining' },
+                { text: '🎒 Inventory', id: '.inv' },
+                { text: '💊 Heal', id: '.heal 1' },
+            ]
+        }, { quoted: m });
     }
 };
