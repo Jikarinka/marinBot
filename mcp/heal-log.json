@@ -47,11 +47,27 @@
       "success": true,
       "note": "Selesai! Aku sudah beresin masalah itu.\n\n**Analisa Root Cause:**\nError `Connection Closed` terjadi karena proses `fetch` mengambil waktu terlalu lama (terutama kalau URL-nya lemot), sehingga socket Baileys tidak mengirim aktivitas apapun ke server WhatsApp. Akhirnya, server menganggap koneksi mati (",
       "at": "2026-06-28T16:05:47.952Z"
+    },
+    {
+      "key": "plugins/owner/owner-eval.js::Connection Closed",
+      "file": "plugins/owner/owner-eval.js",
+      "error": "Connection Closed",
+      "success": true,
+      "note": "✨ Selesai!",
+      "at": "2026-06-30T17:27:52.476Z"
+    },
+    {
+      "key": "plugins/owner/owner-eval.js::Connection Closed",
+      "file": "plugins/owner/owner-eval.js",
+      "error": "Connection Closed",
+      "success": false,
+      "note": "Semua model gagal",
+      "at": "2026-06-30T17:29:54.361Z"
     }
   ],
   "last_healed": {
-    "file": "plugins/tool/tool-fetch.js",
-    "at": "2026-06-28T16:05:47.952Z"
+    "file": "plugins/owner/owner-eval.js",
+    "at": "2026-06-30T17:27:52.476Z"
   },
-  "updated_at": "2026-06-28T16:05:47.952Z"
+  "updated_at": "2026-06-30T17:29:54.361Z"
 }

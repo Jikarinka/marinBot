@@ -1,5 +1,6 @@
 import User from '../../databases/orm/User.js';
 import { SHOP_BUY, SHOP_SELL, emoticon } from '../../libs/rpg-helper.js';
+import { sendSmartList } from '../../libs/message-builder.js';
 
 export default {
     command: ['buy', 'sell', 'shop'],
@@ -16,15 +17,33 @@ export default {
         const mode = commandName === 'sell' ? 'sell' : 'buy';
         const items = mode === 'sell' ? SHOP_SELL : SHOP_BUY;
 
-        // .shop → tampilkan daftar harga buy & sell
+        // .shop → tampilkan daftar harga buy & sell sebagai List Message
         if (commandName === 'shop') {
-            const buyList = Object.entries(SHOP_BUY).map(([k, v]) => `${emoticon(k)} ${k}: ${v.money} 💹`).join('\n');
-            const sellList = Object.entries(SHOP_SELL).map(([k, v]) => `${emoticon(k)} ${k}: ${v.money} 💹`).join('\n');
-            return msgData.reply(
-                `*──「 SHOP 」──*\n\n` +
-                `📥 *BUY* (.buy [item] [jumlah])\n${buyList}\n\n` +
-                `📤 *SELL* (.sell [item] [jumlah])\n${sellList}`
-            );
+            const sections = [
+                {
+                    title: '📥 BUY — .buy [item] [jumlah]',
+                    rows: Object.entries(SHOP_BUY).map(([k, v]) => ({
+                        title: `${emoticon(k)} ${k.charAt(0).toUpperCase() + k.slice(1)}`,
+                        description: `Harga beli: ${v.money} 💹 — ketik .buy ${k} 1`,
+                        rowId: `.buy ${k} 1`
+                    }))
+                },
+                {
+                    title: '📤 SELL — .sell [item] [jumlah]',
+                    rows: Object.entries(SHOP_SELL).map(([k, v]) => ({
+                        title: `${emoticon(k)} ${k.charAt(0).toUpperCase() + k.slice(1)}`,
+                        description: `Harga jual: ${v.money} 💹 — ketik .sell ${k} 1`,
+                        rowId: `.sell ${k} 1`
+                    }))
+                }
+            ];
+
+            return sendSmartList(sock, msgData, m, {
+                text: `🏪 *Selamat datang di Shop!*\n\nMoney kamu saat ini: *${rpg.money}* 💹\n\nPilih item di bawah untuk beli/jual cepat (jumlah default 1, edit manual kalau mau lebih banyak).`,
+                title: '🏪 Marin Shop',
+                buttonText: '🛒 Buka Daftar Item',
+                sections
+            });
         }
 
         const item = (args[0] || '').toLowerCase();

@@ -245,62 +245,6 @@ export default {
 
         const arg = (msgData.args[0] || '').toLowerCase()
 
-        // ── Menu utama tanpa argumen di PRIVATE CHAT → kirim List Message modern ──
-        if ((!arg || arg === '404') && !msgData.isGroup) {
-            const caption = [
-                `╭───「 *${greeting}* 」`,
-                `│`,
-                `│ 👋 Halo *${name}*,`,
-                `│ Selamat datang di *${botName}*!`,
-                `│`,
-                `│ 🪪 *Status:* ${statusStr}`,
-                `│ ⚡ *Limit:* ${rpgLimit}`,
-                `│ 💹 *Money:* ${rpgMoney}`,
-                `│ 🎖️ *Level:* ${rpgLevel} (${rpgRole})`,
-                `│`,
-                `│ 🕒 *${date}* — ${wib} WIB`,
-                `│ ⏱️ *Uptime:* ${uptime}`,
-                `│ 👥 *Total User:* ${totalUser}`,
-                `╰───────────────`,
-                ``,
-                `Pilih kategori di bawah ini untuk menjelajahi semua fitur ${botName} ✨`,
-            ].join('\n')
-
-            const sections = CATEGORIES.map(c => ({
-                title: `${c.emoji} ${c.label}`,
-                rows: [{
-                    title: `Buka kategori ${c.label}`,
-                    description: `${c.cmds.length} fitur tersedia`,
-                    rowId: `.menu ${c.tag}`
-                }]
-            }))
-
-            sections.push({
-                title: '✨ Lainnya',
-                rows: [
-                    {
-                        title: '🏵️ Tampilkan Semua Menu',
-                        description: 'Lihat seluruh fitur sekaligus dalam satu pesan',
-                        rowId: '.menu all'
-                    },
-                    {
-                        title: '🤖 Mulai Chat dengan AI',
-                        description: 'Langsung ngobrol bareng Marin AI',
-                        rowId: '.menu ai'
-                    }
-                ]
-            })
-
-            return sock.sendMessage(msgData.remoteJid, {
-                text: caption,
-                footer: `${botName} • Powered by Gemini AI 🌸`,
-                title: `🌸 ${botName} Menu`,
-                buttonText: '📋 Lihat Semua Kategori',
-                sections,
-                mentions: [msgData.senderJid]
-            }, { quoted: m })
-        }
-
         // ── Tentukan konten ──────────────────────────────────────────
         let menuText = ''
 
